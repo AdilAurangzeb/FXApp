@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Travel FX">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon.svg">
+<title>Travel FX</title>
+<style>
+  :root {
+    --bg: #0f172a; --card: #1e293b; --line: #334155;
+    --text: #f1f5f9; --muted: #94a3b8; --accent: #38bdf8; --warn: #fbbf24;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f1f5f9; --card: #ffffff; --line: #e2e8f0; --text: #0f172a; --muted: #64748b; --accent: #0284c7; --warn: #b45309; }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  body { min-height: 100dvh; padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)); }
+  main { max-width: 480px; margin: 0 auto; display: grid; gap: 14px; }
+  h1 { font-size: 1.1rem; margin: 4px 0 0; font-weight: 600; letter-spacing: .02em; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px; }
+  .row { display: flex; gap: 10px; align-items: center; }
+  input, select { font: inherit; color: var(--text); background: transparent; border: 0; outline: 0; }
+  #amount { flex: 1; min-width: 0; font-size: 2.2rem; font-weight: 600; }
+  select { font-size: 1.2rem; font-weight: 600; background: var(--bg); border: 1px solid var(--line);
+    border-radius: 12px; padding: 10px 8px; }
+  .swap { display: flex; justify-content: center; }
+  button { font: inherit; color: var(--accent); background: var(--card); border: 1px solid var(--line);
+    border-radius: 999px; width: 44px; height: 44px; font-size: 1.3rem; cursor: pointer; }
+  .result { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 2px;
+    border-bottom: 1px solid var(--line); gap: 10px; }
+  .result:last-child { border-bottom: 0; }
+  .label { color: var(--muted); font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; }
+  .value { font-size: 1.5rem; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+  .value small { font-size: .9rem; color: var(--muted); margin-left: 4px; font-weight: 500; }
+  .est { color: var(--warn); font-size: .7rem; margin-left: 6px; font-weight: 600; }
+  .diff { display: block; color: var(--muted); font-size: .72rem; font-weight: 500; }
+  #status { color: var(--muted); font-size: .78rem; text-align: center; min-height: 1.2em; }
+  #status.err { color: var(--warn); }
+  .dim { opacity: .45; transition: opacity .15s; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Travel FX</h1>
+
+  <section class="card">
+    <div class="row">
+      <input id="amount" type="text" inputmode="decimal" autocomplete="off" value="15" aria-label="Amount">
+      <select id="from" aria-label="From currency"></select>
+    </div>
+  </section>
+
+  <div class="swap"><button id="swap" aria-label="Swap currencies">⇅</button></div>
+
+  <section class="card">
+    <div class="row" style="justify-content:space-between">
+      <span class="label">Convert to</span>
+      <select id="to" aria-label="To currency"></select>
+    </div>
+  </section>
+
+  <section class="card" id="results">
+    <div class="result"><span class="label">Market</span><span class="value" id="r-market">–</span></div>
+    <div class="result"><span class="label">Visa</span><span class="value" id="r-visa">–</span></div>
+    <div class="result"><span class="label">Mastercard</span><span class="value" id="r-mc">–</span></div>
+  </section>
+
+  <div id="status"></div>
+</main>
+
+<script>
+const CURRENCIES = ['GBP', 'USD', 'EUR', 'PKR', 'EGP'];
+const $ = (id) => document.getElementById(id);
+const amountEl = $('amount'), fromEl = $('from'), toEl = $('to'), statusEl = $('status');
+const REFRESH_MS = 60_000;
+
+let rates = null;      // latest per-unit rates for the current pair
+let reqId = 0;
+
+const store = {
+  get(k, d) { try { return localStorage.getItem(k) ?? d; } catch (_) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (_) {} },
+};
+
+for (const c of CURRENCIES) {
+  fromEl.add(new Option(c, c));
+  toEl.add(new Option(c, c));
+}
+fromEl.value = store.get('from', 'GBP');
+toEl.value = store.get('to', 'EGP');
+amountEl.value = store.get('amount', '15');
+
+function parseAmount() {
+  const n = parseFloat(amountEl.value.replace(/,/g, '.').replace(/[^0-9.]/g, ''));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function fmt(n, cur) {
+  // PKR/EGP large numbers: 2 decimals, thousands separators
+  return n.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function render() {
+  const amt = parseAmount();
+  const to = toEl.value;
+  if (!rates) return;
+  const rows = [
+    ['r-market', rates.market, false],
+    ['r-visa', rates.visa, rates.estimated?.visa],
+    ['r-mc', rates.mastercard, rates.estimated?.mastercard],
+  ];
+  for (const [id, rate, est] of rows) {
+    const out = amt * rate;
+    let html = `${fmt(out, to)}<small>${to}</small>`;
+    if (est) html += '<span class="est">EST.</span>';
+    if (id !== 'r-market' && rates.market) {
+      const pct = (rate / rates.market - 1) * 100;
+      html += `<span class="diff">${pct >= 0 ? '+' : ''}${pct.toFixed(2)}% vs market</span>`;
+    }
+    $(id).innerHTML = html;
+  }
+}
+
+async function load() {
+  const from = fromEl.value, to = toEl.value;
+  const id = ++reqId;
+  $('results').classList.add('dim');
+  try {
+    const res = await fetch(`/api/rates?from=${from}&to=${to}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (id !== reqId) return; // a newer request superseded this one
+    rates = data;
+    render();
+    statusEl.className = '';
+    const t = new Date(data.fetchedAt || Date.now()).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    const est = data.estimated?.visa || data.estimated?.mastercard;
+    statusEl.textContent = `Updated ${t}` + (est ? ' · EST. = card rate unavailable, market + typical markup' : '');
+  } catch (e) {
+    if (id !== reqId) return;
+    statusEl.className = 'err';
+    statusEl.textContent = rates ? 'Offline – showing last known rates' : 'Could not load rates';
+  } finally {
+    if (id === reqId) $('results').classList.remove('dim');
+  }
+}
+
+function onPairChange() {
+  store.set('from', fromEl.value);
+  store.set('to', toEl.value);
+  rates = null;
+  load();
+}
+
+amountEl.addEventListener('input', () => { store.set('amount', amountEl.value); render(); });
+fromEl.addEventListener('change', onPairChange);
+toEl.addEventListener('change', onPairChange);
+$('swap').addEventListener('click', () => {
+  [fromEl.value, toEl.value] = [toEl.value, fromEl.value];
+  onPairChange();
+});
+document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+setInterval(() => { if (!document.hidden) load(); }, REFRESH_MS);
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+load();
+</script>
+</body>
+</html>
