@@ -1,3 +1,4 @@
+// NOTE: currently unused (Mastercard disabled; see rates.js). Kept for later re-enabling.
 // Mastercard OAuth 1.0a (RSA-SHA256) request signing using WebCrypto.
 // Needs the signing key as an UNENCRYPTED PKCS#8 PEM ("BEGIN PRIVATE KEY").
 

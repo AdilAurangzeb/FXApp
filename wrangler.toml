@@ -4,8 +4,9 @@ name = "fxapp"
 main = "src/worker.js"
 compatibility_date = "2026-01-01"
 
-[vars]
-MC_BASE = "https://sandbox.api.mastercard.com"   # change to https://api.mastercard.com for production
+# Mastercard disabled. To re-enable, uncomment:
+# [vars]
+# MC_BASE = "https://sandbox.api.mastercard.com"   # https://api.mastercard.com for production
 
 [assets]
 directory = "./public"

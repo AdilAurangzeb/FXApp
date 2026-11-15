@@ -71,7 +71,9 @@
   <section class="card" id="results">
     <div class="result"><span class="label">Market</span><span class="value" id="r-market">–</span></div>
     <div class="result"><span class="label">Visa</span><span class="value" id="r-visa">–</span></div>
+    <!-- Mastercard disabled (sandbox rates are simulated):
     <div class="result"><span class="label">Mastercard</span><span class="value" id="r-mc">–</span></div>
+    -->
   </section>
 
   <div id="status"></div>
@@ -116,7 +118,7 @@ function render() {
   const rows = [
     ['r-market', rates.market, false],
     ['r-visa', rates.visa, rates.estimated?.visa],
-    ['r-mc', rates.mastercard, rates.estimated?.mastercard],
+    // ['r-mc', rates.mastercard, rates.estimated?.mastercard],  // Mastercard disabled
   ];
   for (const [id, rate, est] of rows) {
     const out = amt * rate;
@@ -143,8 +145,8 @@ async function load() {
     render();
     statusEl.className = '';
     const t = new Date(data.fetchedAt || Date.now()).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-    const est = data.estimated?.visa || data.estimated?.mastercard;
-    statusEl.textContent = `Updated ${t}` + (est ? ' · EST. = card rate unavailable, market + typical markup' : '');
+    const est = data.estimated?.visa;
+    statusEl.textContent = `Updated ${t}` + (est ? ' · EST. = Visa rate unavailable, market + typical markup' : '');
   } catch (e) {
     if (id !== reqId) return;
     statusEl.className = 'err';

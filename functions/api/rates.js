@@ -5,10 +5,12 @@
 // change or block). If they fail, we fall back to an ESTIMATE (market + typical
 // markup) and flag it so the UI can show "est.".
 
-import { mastercardAuthHeader } from './_mastercard.js';
+// Mastercard disabled (sandbox returns simulated rates). To re-enable: uncomment this import,
+// the two mastercard functions below, and the mastercard lines in onRequestGet.
+// import { mastercardAuthHeader } from './_mastercard.js';
 
 const CURRENCIES =['GBP', 'USD', 'EUR', 'PKR', 'EGP'];
-const EST_MARKUP = { visa: 0.0034, mastercard: 0.0028 }; // observed typical spread over mid-market
+const EST_MARKUP = { visa: 0.0034 /*, mastercard: 0.0028 */ }; // observed typical spread over mid-market
 const UA =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
 
@@ -97,6 +99,7 @@ async function visaRate(from, to, market) {
   return null;
 }
 
+/* --- MASTERCARD (disabled) ---
 // Official Mastercard Currency Conversion Calculator API (OAuth 1.0a).
 // Secrets: MC_CONSUMER_KEY, MC_PRIVATE_KEY (PKCS#8 PEM). Var: MC_BASE.
 async function mastercardApiRate(env, from, to, market) {
@@ -139,6 +142,7 @@ async function mastercardRate(from, to, market) {
     return null;
   }
 }
+--- END MASTERCARD --- */
 
 export async function onRequestGet({ request, env }) {
   const u = new URL(request.url);
@@ -148,7 +152,7 @@ export async function onRequestGet({ request, env }) {
     return json({ error: 'Unsupported currency', supported: CURRENCIES }, 400);
   }
   if (from === to) {
-    return json({ from, to, market: 1, visa: 1, mastercard: 1, estimated: { visa: false, mastercard: false } });
+    return json({ from, to, market: 1, visa: 1, /* mastercard: 1, */ estimated: { visa: false /*, mastercard: false */ } });
   }
 
   let m;
@@ -158,18 +162,16 @@ export async function onRequestGet({ request, env }) {
     return json({ error: 'Could not fetch market rate' }, 502);
   }
 
-  const [v, mc] = await Promise.all([
-    visaApiRate(env, from, to, m.rate).then((r) => r ?? visaRate(from, to, m.rate)),
-    mastercardApiRate(env, from, to, m.rate).then((r) => r ?? mastercardRate(from, to, m.rate)),
-  ]);
+  const v = await visaApiRate(env, from, to, m.rate).then((r) => r ?? visaRate(from, to, m.rate));
+  // const mc = await mastercardApiRate(env, from, to, m.rate).then((r) => r ?? mastercardRate(from, to, m.rate));
 
   return json({
     from,
     to,
     market: m.rate,
     visa: v ?? m.rate * (1 + EST_MARKUP.visa),
-    mastercard: mc ?? m.rate * (1 + EST_MARKUP.mastercard),
-    estimated: { visa: v === null, mastercard: mc === null },
+    // mastercard: mc ?? m.rate * (1 + EST_MARKUP.mastercard),
+    estimated: { visa: v === null /*, mastercard: mc === null */ },
     marketUpdated: m.updated,
     fetchedAt: new Date().toISOString(),
   });
