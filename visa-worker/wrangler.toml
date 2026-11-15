@@ -10,4 +10,4 @@ VISA_BIN = "0"                               # your acquiring BIN (A/B) or initi
 
 [[mtls_certificates]]
 binding = "VISA_CERT"
-certificate_id = "30c3da20-1b20-4b3e-9aa3-f588c37a2ac5"
+certificate_id = "PASTE_ID_FROM_WRANGLER_UPLOAD"
