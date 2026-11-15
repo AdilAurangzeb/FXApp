@@ -1,0 +1,15 @@
+# Cloudflare Worker + static assets deployment.
+# `name` must match the Worker's name in the Cloudflare dashboard.
+name = "fxapp"
+main = "src/worker.js"
+compatibility_date = "2026-01-01"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = ["/api/*"]
+
+# Enable only after the visa-worker is deployed (README, Part 3):
+# [[services]]
+# binding = "VISA_WORKER"
+# service = "visa-worker"
