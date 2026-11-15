@@ -28,7 +28,6 @@
     min-height: 100dvh; display: flex; justify-content: center;
     padding: max(14px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
   }
-  /* The key fix: a single column that may shrink below its content's width */
   main {
     width: 100%; max-width: 720px; min-width: 0;
     display: grid; grid-template-columns: minmax(0, 1fr);
@@ -38,8 +37,8 @@
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 14px 16px; min-width: 0; }
   .row { display: flex; gap: 12px; align-items: center; min-width: 0; }
   input, select { font: inherit; color: var(--text); background: transparent; border: 0; outline: 0; min-width: 0; }
-  #amount { flex: 1 1 0; width: 100%; font-size: 3.5rem; font-weight: 700; padding: 0;
-    font-variant-numeric: tabular-nums; }
+  input { caret-color: var(--accent); font-variant-numeric: tabular-nums; padding: 0; }
+  #amount { flex: 1 1 0; width: 100%; font-size: 3.5rem; font-weight: 700; }
   select { flex: 0 0 auto; font-size: 1.3rem; font-weight: 700; background: var(--bg); border: 1px solid var(--line);
     border-radius: 14px; padding: 12px 10px; color: var(--text); }
   .swap { display: flex; justify-content: center; margin: -4px 0; }
@@ -47,16 +46,17 @@
     border-radius: 999px; width: 48px; height: 48px; font-size: 1.4rem; cursor: pointer; }
   .label { color: var(--muted); font-size: .85rem; letter-spacing: .12em; text-transform: uppercase; font-weight: 600; }
 
-  /* Results fill all remaining height */
-  #results { display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-rows: minmax(0, 1fr); gap: 12px; min-height: 0; }
+  #results { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
   .result { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 14px 16px;
-    display: flex; flex-direction: column; justify-content: space-between; min-width: 0; min-height: 110px; overflow: hidden; }
-  .result.visa { border-color: var(--visa); box-shadow: inset 0 0 0 1px var(--visa); }
+    display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+  .result.market { flex: 1 1 0; min-height: 150px; justify-content: space-between; }
+  .result.visa { flex: 0 0 auto; border-color: var(--visa); box-shadow: inset 0 0 0 1px var(--visa); gap: 4px; }
   .rhead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
   .est { color: var(--warn); font-size: .75rem; font-weight: 700; margin-left: 8px; }
   .big { display: flex; align-items: center; flex: 1; min-width: 0; }
-  .value { display: inline-block; white-space: nowrap; font-weight: 800; line-height: 1; letter-spacing: -.02em;
-    font-variant-numeric: tabular-nums; }
+  .value { width: 100%; font-weight: 800; line-height: 1.05; letter-spacing: -.02em; }
+  #v-market { font-size: 120px; }
+  #v-visa { font-size: 56px; font-weight: 700; }
   .rfoot { color: var(--muted); font-size: .85rem; min-height: 1.1em; }
   #status { color: var(--muted); font-size: .78rem; text-align: center; min-height: 1.2em; }
   #status.err { color: var(--warn); }
@@ -82,23 +82,17 @@
   </section>
 
   <section id="results">
-    <div class="result">
+    <div class="result market">
       <div class="rhead"><span class="label">Market</span><span class="label" id="c-market"></span></div>
-      <div class="big"><span class="value" id="r-market">–</span></div>
+      <div class="big"><input class="value" id="v-market" type="text" inputmode="decimal" autocomplete="off" placeholder="–" aria-label="Market rate amount"></div>
       <div class="rfoot" id="f-market"></div>
     </div>
+    <!-- Mastercard disabled (sandbox rates are simulated). To restore, add a card here like the Visa one. -->
     <div class="result visa">
       <div class="rhead"><span class="label">Visa<span class="est" id="e-visa" hidden>EST.</span></span><span class="label" id="c-visa"></span></div>
-      <div class="big"><span class="value" id="r-visa">–</span></div>
+      <input class="value" id="v-visa" type="text" inputmode="decimal" autocomplete="off" placeholder="–" aria-label="Visa rate amount">
       <div class="rfoot" id="f-visa"></div>
     </div>
-    <!-- Mastercard disabled (sandbox rates are simulated):
-    <div class="result">
-      <div class="rhead"><span class="label">Mastercard</span><span class="label" id="c-mc"></span></div>
-      <div class="big"><span class="value" id="r-mc">–</span></div>
-      <div class="rfoot" id="f-mc"></div>
-    </div>
-    -->
   </section>
 
   <div id="status"></div>
@@ -108,6 +102,7 @@
 const CURRENCIES = ['GBP', 'USD', 'EUR', 'PKR', 'EGP'];
 const $ = (id) => document.getElementById(id);
 const amountEl = $('amount'), fromEl = $('from'), toEl = $('to'), statusEl = $('status');
+const marketEl = $('v-market'), visaEl = $('v-visa');
 const REFRESH_MS = 60_000;
 
 let rates = null;
@@ -118,65 +113,57 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, v); } catch (_) {} },
 };
 
-for (const c of CURRENCIES) {
-  fromEl.add(new Option(c, c));
-  toEl.add(new Option(c, c));
-}
+const parseNum = (s) => {
+  const n = parseFloat(String(s).replace(/,/g, '').replace(/[^0-9.]/g, ''));
+  return Number.isFinite(n) ? n : 0;
+};
+const fmt2 = (n) => n.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtBase = (n) => (n > 0 && n < 0.1 ? n.toFixed(4) : n.toFixed(2));
+
+for (const c of CURRENCIES) { fromEl.add(new Option(c, c)); toEl.add(new Option(c, c)); }
 fromEl.value = store.get('from', 'GBP');
 toEl.value = store.get('to', 'EGP');
 amountEl.value = store.get('amount', '15');
 
-function parseAmount() {
-  const n = parseFloat(amountEl.value.replace(/,/g, '').replace(/[^0-9.]/g, ''));
-  return Number.isFinite(n) ? n : 0;
-}
+// base = the amount in the FROM currency. Every field is derived from it.
+let base = parseNum(amountEl.value);
 
-const fmt = (n) => n.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-// Grow the number as large as fits the card width (and a sensible height cap).
-function fit(el) {
-  const box = el.parentElement;
-  const maxW = box.clientWidth;
-  const maxH = box.clientHeight || 200;
-  if (!maxW) return;
-  let size = Math.min(maxH * 0.9, 200);
+// Shrink-to-fit for inputs: start at max size, reduce until the text fits.
+function fitInput(el, maxPx, minPx = 18) {
+  let size = maxPx, guard = 0;
   el.style.fontSize = size + 'px';
-  let guard = 0;
-  while (el.offsetWidth > maxW && size > 18 && guard++ < 80) {
-    size = Math.max(18, size * Math.min(0.96, maxW / el.offsetWidth));
+  while (el.scrollWidth > el.clientWidth && size > minPx && guard++ < 80) {
+    size = Math.max(minPx, size * Math.min(0.96, el.clientWidth / el.scrollWidth));
     el.style.fontSize = size + 'px';
   }
 }
-function fitAmount() {
-  let size = 64, guard = 0;
-  amountEl.style.fontSize = size + 'px';
-  while (amountEl.scrollWidth > amountEl.clientWidth && size > 22 && guard++ < 60) {
-    size -= 2;
-    amountEl.style.fontSize = size + 'px';
-  }
+function fitAll() {
+  fitInput(amountEl, 64, 22);
+  const h = marketEl.parentElement.clientHeight || 160;
+  fitInput(marketEl, Math.min(h * 0.9, 190), 22);
+  fitInput(visaEl, 56, 20);
 }
-function fitAll() { fitAmount(); for (const id of ['r-market', 'r-visa']) fit($(id)); }
 
-function render() {
+// Write into a field unless the person is typing in it right now.
+function setField(el, text) { if (document.activeElement !== el) el.value = text; }
+
+// source = the field the person just edited ('amount' | 'market' | 'visa' | null)
+function render(source) {
   if (!rates) return;
-  const amt = parseAmount();
   const to = toEl.value;
-  const rows = [
-    ['market', rates.market, false],
-    ['visa', rates.visa, rates.estimated?.visa],
-    // ['mc', rates.mastercard, rates.estimated?.mastercard],  // Mastercard disabled
-  ];
-  for (const [key, rate, est] of rows) {
-    $('r-' + key).textContent = fmt(amt * rate);
+  if (source === 'market' || source === 'visa') setField(amountEl, fmtBase(base));
+  setField(marketEl, fmt2(base * rates.market));
+  setField(visaEl, fmt2(base * rates.visa));
+  for (const [key, rate] of [['market', rates.market], ['visa', rates.visa]]) {
     $('c-' + key).textContent = to;
-    const e = $('e-' + key); if (e) e.hidden = !est;
     let foot = `1 ${fromEl.value} = ${rate.toLocaleString('en-GB', { maximumFractionDigits: 4 })} ${to}`;
-    if (key !== 'market' && rates.market) {
+    if (key === 'visa' && rates.market) {
       const pct = (rate / rates.market - 1) * 100;
       foot += ` · ${pct >= 0 ? '+' : ''}${pct.toFixed(2)}% vs market`;
     }
     $('f-' + key).textContent = foot;
   }
+  $('e-visa').hidden = !rates.estimated?.visa;
   fitAll();
 }
 
@@ -190,7 +177,7 @@ async function load() {
     const data = await res.json();
     if (id !== reqId) return;
     rates = data;
-    render();
+    render(null);
     statusEl.className = '';
     const t = new Date(data.fetchedAt || Date.now()).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     statusEl.textContent = `Updated ${t}` + (data.estimated?.visa ? ' · EST. = Visa rate unavailable, market + typical markup' : '');
@@ -207,13 +194,35 @@ function onPairChange() {
   store.set('from', fromEl.value);
   store.set('to', toEl.value);
   rates = null;
-  for (const k of ['market', 'visa']) { $('r-' + k).textContent = '–'; $('f-' + k).textContent = ''; $('c-' + k).textContent = ''; }
+  for (const k of ['market', 'visa']) { $('v-' + k).value = ''; $('f-' + k).textContent = ''; $('c-' + k).textContent = ''; }
   fitAll();
   load();
 }
 
-amountEl.addEventListener('input', () => { store.set('amount', amountEl.value); fitAmount(); render(); });
-amountEl.addEventListener('focus', () => amountEl.select());
+// --- Editing: any of the three fields can drive the others ---
+amountEl.addEventListener('input', () => {
+  base = parseNum(amountEl.value);
+  store.set('amount', amountEl.value);
+  render('amount');
+  fitAmountOnly();
+});
+function fitAmountOnly() { fitInput(amountEl, 64, 22); }
+
+function onResultEdit(el, key) {
+  el.addEventListener('input', () => {
+    if (!rates) return;
+    base = parseNum(el.value) / rates[key === 'market' ? 'market' : 'visa'];
+    render(key);
+    store.set('amount', amountEl.value);
+    fitInput(el, el === marketEl ? Math.min((el.parentElement.clientHeight || 160) * 0.9, 190) : 56, el === marketEl ? 22 : 20);
+  });
+  el.addEventListener('blur', () => { if (rates) { el.value = fmt2(base * rates[key === 'market' ? 'market' : 'visa']); fitAll(); } });
+}
+onResultEdit(marketEl, 'market');
+onResultEdit(visaEl, 'visa');
+
+for (const el of [amountEl, marketEl, visaEl]) el.addEventListener('focus', () => setTimeout(() => el.select(), 0));
+
 fromEl.addEventListener('change', onPairChange);
 toEl.addEventListener('change', onPairChange);
 $('swap').addEventListener('click', () => {
@@ -223,7 +232,7 @@ $('swap').addEventListener('click', () => {
 document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
 window.addEventListener('resize', fitAll);
 window.addEventListener('orientationchange', () => setTimeout(fitAll, 150));
-setInterval(() => { if (!document.hidden) load(); }, REFRESH_MS);
+setInterval(() => { if (!document.hidden && document.activeElement !== marketEl && document.activeElement !== visaEl) load(); }, REFRESH_MS);
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 fitAll();
