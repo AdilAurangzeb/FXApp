@@ -16,33 +16,48 @@
   :root {
     --bg: #0f172a; --card: #1e293b; --line: #334155;
     --text: #f1f5f9; --muted: #94a3b8; --accent: #38bdf8; --warn: #fbbf24;
+    --visa: #1d4ed8;
   }
   @media (prefers-color-scheme: light) {
-    :root { --bg: #f1f5f9; --card: #ffffff; --line: #e2e8f0; --text: #0f172a; --muted: #64748b; --accent: #0284c7; --warn: #b45309; }
+    :root { --bg: #f1f5f9; --card: #ffffff; --line: #e2e8f0; --text: #0f172a; --muted: #64748b; --accent: #0284c7; --warn: #b45309; --visa: #1d4ed8; }
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; background: var(--bg); color: var(--text);
+  html, body { margin: 0; width: 100%; height: 100%; overflow-x: hidden; background: var(--bg); color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  body { min-height: 100dvh; padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)); }
-  main { max-width: 480px; margin: 0 auto; display: grid; gap: 14px; }
-  h1 { font-size: 1.1rem; margin: 4px 0 0; font-weight: 600; letter-spacing: .02em; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px; }
-  .row { display: flex; gap: 10px; align-items: center; }
-  input, select { font: inherit; color: var(--text); background: transparent; border: 0; outline: 0; }
-  #amount { flex: 1; min-width: 0; font-size: 2.2rem; font-weight: 600; }
-  select { font-size: 1.2rem; font-weight: 600; background: var(--bg); border: 1px solid var(--line);
-    border-radius: 12px; padding: 10px 8px; }
-  .swap { display: flex; justify-content: center; }
+  body {
+    min-height: 100dvh; display: flex; justify-content: center;
+    padding: max(14px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
+  }
+  /* The key fix: a single column that may shrink below its content's width */
+  main {
+    width: 100%; max-width: 720px; min-width: 0;
+    display: grid; grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+    gap: 12px; min-height: calc(100dvh - 28px);
+  }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 14px 16px; min-width: 0; }
+  .row { display: flex; gap: 12px; align-items: center; min-width: 0; }
+  input, select { font: inherit; color: var(--text); background: transparent; border: 0; outline: 0; min-width: 0; }
+  #amount { flex: 1 1 0; width: 100%; font-size: 3.5rem; font-weight: 700; padding: 0;
+    font-variant-numeric: tabular-nums; }
+  select { flex: 0 0 auto; font-size: 1.3rem; font-weight: 700; background: var(--bg); border: 1px solid var(--line);
+    border-radius: 14px; padding: 12px 10px; color: var(--text); }
+  .swap { display: flex; justify-content: center; margin: -4px 0; }
   button { font: inherit; color: var(--accent); background: var(--card); border: 1px solid var(--line);
-    border-radius: 999px; width: 44px; height: 44px; font-size: 1.3rem; cursor: pointer; }
-  .result { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 2px;
-    border-bottom: 1px solid var(--line); gap: 10px; }
-  .result:last-child { border-bottom: 0; }
-  .label { color: var(--muted); font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; }
-  .value { font-size: 1.5rem; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
-  .value small { font-size: .9rem; color: var(--muted); margin-left: 4px; font-weight: 500; }
-  .est { color: var(--warn); font-size: .7rem; margin-left: 6px; font-weight: 600; }
-  .diff { display: block; color: var(--muted); font-size: .72rem; font-weight: 500; }
+    border-radius: 999px; width: 48px; height: 48px; font-size: 1.4rem; cursor: pointer; }
+  .label { color: var(--muted); font-size: .85rem; letter-spacing: .12em; text-transform: uppercase; font-weight: 600; }
+
+  /* Results fill all remaining height */
+  #results { display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-rows: minmax(0, 1fr); gap: 12px; min-height: 0; }
+  .result { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 14px 16px;
+    display: flex; flex-direction: column; justify-content: space-between; min-width: 0; min-height: 110px; overflow: hidden; }
+  .result.visa { border-color: var(--visa); box-shadow: inset 0 0 0 1px var(--visa); }
+  .rhead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .est { color: var(--warn); font-size: .75rem; font-weight: 700; margin-left: 8px; }
+  .big { display: flex; align-items: center; flex: 1; min-width: 0; }
+  .value { display: inline-block; white-space: nowrap; font-weight: 800; line-height: 1; letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums; }
+  .rfoot { color: var(--muted); font-size: .85rem; min-height: 1.1em; }
   #status { color: var(--muted); font-size: .78rem; text-align: center; min-height: 1.2em; }
   #status.err { color: var(--warn); }
   .dim { opacity: .45; transition: opacity .15s; }
@@ -50,8 +65,6 @@
 </head>
 <body>
 <main>
-  <h1>Travel FX</h1>
-
   <section class="card">
     <div class="row">
       <input id="amount" type="text" inputmode="decimal" autocomplete="off" value="15" aria-label="Amount">
@@ -68,11 +81,23 @@
     </div>
   </section>
 
-  <section class="card" id="results">
-    <div class="result"><span class="label">Market</span><span class="value" id="r-market">–</span></div>
-    <div class="result"><span class="label">Visa</span><span class="value" id="r-visa">–</span></div>
+  <section id="results">
+    <div class="result">
+      <div class="rhead"><span class="label">Market</span><span class="label" id="c-market"></span></div>
+      <div class="big"><span class="value" id="r-market">–</span></div>
+      <div class="rfoot" id="f-market"></div>
+    </div>
+    <div class="result visa">
+      <div class="rhead"><span class="label">Visa<span class="est" id="e-visa" hidden>EST.</span></span><span class="label" id="c-visa"></span></div>
+      <div class="big"><span class="value" id="r-visa">–</span></div>
+      <div class="rfoot" id="f-visa"></div>
+    </div>
     <!-- Mastercard disabled (sandbox rates are simulated):
-    <div class="result"><span class="label">Mastercard</span><span class="value" id="r-mc">–</span></div>
+    <div class="result">
+      <div class="rhead"><span class="label">Mastercard</span><span class="label" id="c-mc"></span></div>
+      <div class="big"><span class="value" id="r-mc">–</span></div>
+      <div class="rfoot" id="f-mc"></div>
+    </div>
     -->
   </section>
 
@@ -85,7 +110,7 @@ const $ = (id) => document.getElementById(id);
 const amountEl = $('amount'), fromEl = $('from'), toEl = $('to'), statusEl = $('status');
 const REFRESH_MS = 60_000;
 
-let rates = null;      // latest per-unit rates for the current pair
+let rates = null;
 let reqId = 0;
 
 const store = {
@@ -102,34 +127,57 @@ toEl.value = store.get('to', 'EGP');
 amountEl.value = store.get('amount', '15');
 
 function parseAmount() {
-  const n = parseFloat(amountEl.value.replace(/,/g, '.').replace(/[^0-9.]/g, ''));
+  const n = parseFloat(amountEl.value.replace(/,/g, '').replace(/[^0-9.]/g, ''));
   return Number.isFinite(n) ? n : 0;
 }
 
-function fmt(n, cur) {
-  // PKR/EGP large numbers: 2 decimals, thousands separators
-  return n.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt = (n) => n.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// Grow the number as large as fits the card width (and a sensible height cap).
+function fit(el) {
+  const box = el.parentElement;
+  const maxW = box.clientWidth;
+  const maxH = box.clientHeight || 200;
+  if (!maxW) return;
+  let size = Math.min(maxH * 0.9, 200);
+  el.style.fontSize = size + 'px';
+  let guard = 0;
+  while (el.offsetWidth > maxW && size > 18 && guard++ < 80) {
+    size = Math.max(18, size * Math.min(0.96, maxW / el.offsetWidth));
+    el.style.fontSize = size + 'px';
+  }
 }
+function fitAmount() {
+  let size = 64, guard = 0;
+  amountEl.style.fontSize = size + 'px';
+  while (amountEl.scrollWidth > amountEl.clientWidth && size > 22 && guard++ < 60) {
+    size -= 2;
+    amountEl.style.fontSize = size + 'px';
+  }
+}
+function fitAll() { fitAmount(); for (const id of ['r-market', 'r-visa']) fit($(id)); }
 
 function render() {
+  if (!rates) return;
   const amt = parseAmount();
   const to = toEl.value;
-  if (!rates) return;
   const rows = [
-    ['r-market', rates.market, false],
-    ['r-visa', rates.visa, rates.estimated?.visa],
-    // ['r-mc', rates.mastercard, rates.estimated?.mastercard],  // Mastercard disabled
+    ['market', rates.market, false],
+    ['visa', rates.visa, rates.estimated?.visa],
+    // ['mc', rates.mastercard, rates.estimated?.mastercard],  // Mastercard disabled
   ];
-  for (const [id, rate, est] of rows) {
-    const out = amt * rate;
-    let html = `${fmt(out, to)}<small>${to}</small>`;
-    if (est) html += '<span class="est">EST.</span>';
-    if (id !== 'r-market' && rates.market) {
+  for (const [key, rate, est] of rows) {
+    $('r-' + key).textContent = fmt(amt * rate);
+    $('c-' + key).textContent = to;
+    const e = $('e-' + key); if (e) e.hidden = !est;
+    let foot = `1 ${fromEl.value} = ${rate.toLocaleString('en-GB', { maximumFractionDigits: 4 })} ${to}`;
+    if (key !== 'market' && rates.market) {
       const pct = (rate / rates.market - 1) * 100;
-      html += `<span class="diff">${pct >= 0 ? '+' : ''}${pct.toFixed(2)}% vs market</span>`;
+      foot += ` · ${pct >= 0 ? '+' : ''}${pct.toFixed(2)}% vs market`;
     }
-    $(id).innerHTML = html;
+    $('f-' + key).textContent = foot;
   }
+  fitAll();
 }
 
 async function load() {
@@ -140,13 +188,12 @@ async function load() {
     const res = await fetch(`/api/rates?from=${from}&to=${to}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    if (id !== reqId) return; // a newer request superseded this one
+    if (id !== reqId) return;
     rates = data;
     render();
     statusEl.className = '';
     const t = new Date(data.fetchedAt || Date.now()).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-    const est = data.estimated?.visa;
-    statusEl.textContent = `Updated ${t}` + (est ? ' · EST. = Visa rate unavailable, market + typical markup' : '');
+    statusEl.textContent = `Updated ${t}` + (data.estimated?.visa ? ' · EST. = Visa rate unavailable, market + typical markup' : '');
   } catch (e) {
     if (id !== reqId) return;
     statusEl.className = 'err';
@@ -160,10 +207,13 @@ function onPairChange() {
   store.set('from', fromEl.value);
   store.set('to', toEl.value);
   rates = null;
+  for (const k of ['market', 'visa']) { $('r-' + k).textContent = '–'; $('f-' + k).textContent = ''; $('c-' + k).textContent = ''; }
+  fitAll();
   load();
 }
 
-amountEl.addEventListener('input', () => { store.set('amount', amountEl.value); render(); });
+amountEl.addEventListener('input', () => { store.set('amount', amountEl.value); fitAmount(); render(); });
+amountEl.addEventListener('focus', () => amountEl.select());
 fromEl.addEventListener('change', onPairChange);
 toEl.addEventListener('change', onPairChange);
 $('swap').addEventListener('click', () => {
@@ -171,9 +221,12 @@ $('swap').addEventListener('click', () => {
   onPairChange();
 });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+window.addEventListener('resize', fitAll);
+window.addEventListener('orientationchange', () => setTimeout(fitAll, 150));
 setInterval(() => { if (!document.hidden) load(); }, REFRESH_MS);
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+fitAll();
 load();
 </script>
 </body>
