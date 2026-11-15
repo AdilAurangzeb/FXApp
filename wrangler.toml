@@ -4,6 +4,9 @@ name = "fxapp"
 main = "src/worker.js"
 compatibility_date = "2026-01-01"
 
+[vars]
+MC_BASE = "https://sandbox.api.mastercard.com"   # change to https://api.mastercard.com for production
+
 [assets]
 directory = "./public"
 binding = "ASSETS"
@@ -11,5 +14,5 @@ run_worker_first = ["/api/*"]
 
 # Enable only after the visa-worker is deployed (README, Part 3):
 # [[services]]
-binding = "VISA_WORKER"
-service = "visa-worker"
+# binding = "VISA_WORKER"
+# service = "visa-worker"

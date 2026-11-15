@@ -5,7 +5,9 @@
 // change or block). If they fail, we fall back to an ESTIMATE (market + typical
 // markup) and flag it so the UI can show "est.".
 
-const CURRENCIES = ['GBP', 'USD', 'EUR', 'PKR', 'EGP'];
+import { mastercardAuthHeader } from './_mastercard.js';
+
+const CURRENCIES =['GBP', 'USD', 'EUR', 'PKR', 'EGP'];
 const EST_MARKUP = { visa: 0.0034, mastercard: 0.0028 }; // observed typical spread over mid-market
 const UA =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
@@ -95,6 +97,36 @@ async function visaRate(from, to, market) {
   return null;
 }
 
+// Official Mastercard Currency Conversion Calculator API (OAuth 1.0a).
+// Secrets: MC_CONSUMER_KEY, MC_PRIVATE_KEY (PKCS#8 PEM). Var: MC_BASE.
+async function mastercardApiRate(env, from, to, market) {
+  if (!env?.MC_CONSUMER_KEY || !env?.MC_PRIVATE_KEY) return null;
+  try {
+    const base = env.MC_BASE || 'https://sandbox.api.mastercard.com';
+    const url =
+      `${base}/settlement/currencyrate/conversion-rate?fxDate=0000-00-00` +
+      `&transCurr=${from}&crdhldBillCurr=${to}&bankFee=0&transAmt=1`;
+    const authorization = await mastercardAuthHeader({
+      url,
+      consumerKey: env.MC_CONSUMER_KEY,
+      privateKeyPem: env.MC_PRIVATE_KEY,
+    });
+    const res = await fetch(url, {
+      headers: { authorization, accept: 'application/json' },
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!res.ok) {
+      console.log('mastercard api', res.status, (await res.text()).slice(0, 300));
+      return null;
+    }
+    const d = await res.json();
+    return pickRate(parseFloat(d?.data?.conversionRate ?? d?.conversionRate), market);
+  } catch (e) {
+    console.log('mastercard api error', String(e));
+    return null;
+  }
+}
+
 async function mastercardRate(from, to, market) {
   const url =
     `https://www.mastercard.us/settlement/currencyrate/conversion-rate?fxDate=0000-00-00` +
@@ -128,7 +160,7 @@ export async function onRequestGet({ request, env }) {
 
   const [v, mc] = await Promise.all([
     visaApiRate(env, from, to, m.rate).then((r) => r ?? visaRate(from, to, m.rate)),
-    mastercardRate(from, to, m.rate),
+    mastercardApiRate(env, from, to, m.rate).then((r) => r ?? mastercardRate(from, to, m.rate)),
   ]);
 
   return json({
