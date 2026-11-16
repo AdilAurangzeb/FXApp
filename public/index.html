@@ -84,7 +84,7 @@
 <main>
   <div class="result">
     <div class="rhead"><span class="label">Amount</span><select id="from" aria-label="From currency"></select></div>
-    <div class="big"><input class="value" id="amount" type="text" inputmode="decimal" autocomplete="off" value="15" aria-label="Amount"></div>
+    <div class="big"><input class="value" id="amount" type="text" inputmode="decimal" autocomplete="off" placeholder="0" aria-label="Amount"></div>
     <div class="rfoot" id="f-amount"></div>
   </div>
 
@@ -133,7 +133,8 @@ const fmtRate = (r) => r.toLocaleString('en-GB', { maximumFractionDigits: 4 });
 for (const c of CURRENCIES) { fromEl.add(new Option(c, c)); toEl.add(new Option(c, c)); }
 fromEl.value = store.get('from', 'GBP');
 toEl.value = store.get('to', 'EGP');
-amountEl.value = store.get('amount', '15');
+// The amount is deliberately NOT remembered: the app opens empty. Only the currency pair persists.
+try { localStorage.removeItem('amount'); } catch (_) {}
 
 // base = the amount in the FROM currency. Every field is derived from it.
 let base = parseNum(amountEl.value);
@@ -215,7 +216,6 @@ function onPairChange() {
 // --- Editing: any of the three fields can drive the others ---
 amountEl.addEventListener('input', () => {
   base = parseNum(amountEl.value);
-  store.set('amount', amountEl.value);
   render('amount');
   fitAll();
 });
@@ -225,8 +225,7 @@ function onResultEdit(el, key) {
     if (!rates) return;
     base = parseNum(el.value) / rates[key];
     render(key);
-    store.set('amount', amountEl.value);
-    fitAll();
+      fitAll();
   });
   el.addEventListener('blur', () => { if (rates) { el.value = fmt2(base * rates[key]); fitAll(); } });
 }
