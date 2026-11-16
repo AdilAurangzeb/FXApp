@@ -49,7 +49,7 @@
   .result { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 14px 16px;
     display: flex; flex-direction: column; justify-content: space-between; min-width: 0; min-height: 0; overflow: hidden; }
   .rhead { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 2.6rem; }
-  .big { display: flex; align-items: center; flex: 1; min-width: 0; }
+  .big { display: flex; align-items: center; flex: 1; min-width: 0; min-height: 0; }
   .value { width: 100%; font-weight: 800; line-height: 1.05; letter-spacing: -.02em; font-size: 100px; }
   .rfoot { color: var(--muted); font-size: .85rem; min-height: 1.1em; }
   .est { color: var(--warn); font-size: .75rem; font-weight: 700; margin-left: 8px; }
@@ -68,8 +68,9 @@
   html.compact .result { padding: 8px 12px; }
   html.compact .rfoot, html.compact #status { display: none; }
   html.compact .rhead { min-height: 0; }
-  html.compact .result:not(.visa) { flex-direction: row; align-items: center; gap: 10px; }
-  html.compact .result:not(.visa) .rhead { order: 2; flex: 0 0 auto; }
+  html.compact .result:not(.visa) { flex-direction: row; align-items: stretch; gap: 10px; }
+  html.compact .result:not(.visa) .big { align-self: stretch; }
+  html.compact .result:not(.visa) .rhead { order: 2; flex: 0 0 auto; align-self: center; }
   html.compact .result:not(.visa) .rhead .label { display: none; }
   html.compact select { font-size: 1rem; padding: 5px 8px; border-radius: 10px; }
   html.compact .swap { margin: -3px 0; }
@@ -141,20 +142,17 @@ let base = parseNum(amountEl.value);
 function fitInput(el, maxPx, minPx = 16) {
   let size = maxPx, guard = 0;
   el.style.fontSize = size + 'px';
+  if (!el.value) return;
   while (el.scrollWidth > el.clientWidth && size > minPx && guard++ < 80) {
     size = Math.max(minPx, size * Math.min(0.96, el.clientWidth / el.scrollWidth));
     el.style.fontSize = size + 'px';
   }
 }
+// Each number is sized on its own: as big as fits its card, never tied to another field.
+function capFor(el) { return Math.min((el.parentElement.clientHeight || 160) * 0.9, 190); }
 function fitAll() {
-  // Amount and Market share one font size: the smaller of the two that fit.
-  const h = marketEl.parentElement.clientHeight || 160;
-  const max = Math.min(h * 0.9, 190);
-  fitInput(amountEl, max, 22);
-  fitInput(marketEl, max, 22);
-  const s = Math.min(parseFloat(amountEl.style.fontSize), parseFloat(marketEl.style.fontSize)) + 'px';
-  amountEl.style.fontSize = s;
-  marketEl.style.fontSize = s;
+  fitInput(amountEl, capFor(amountEl), 22);
+  fitInput(marketEl, capFor(marketEl), 22);
   fitInput(visaEl, document.documentElement.classList.contains('compact') ? 28 : 34, 16);
 }
 
